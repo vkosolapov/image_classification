@@ -42,10 +42,10 @@ class vgg(nn.Module):
             nn.Flatten(),
             nn.Linear(512 * 7 * 7, 4096),
             nn.ReLU(inplace=True),
-            # nn.Dropout(),
+            nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            # nn.Dropout(),
+            nn.Dropout(),
             nn.Linear(4096, num_classes)
         )
         for module in self.modules():
