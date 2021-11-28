@@ -40,13 +40,13 @@ class vgg(nn.Module):
 
             # nn.AdaptiveAvgPool2d((7, 7)),
             nn.Flatten(),
-            nn.Linear(512 * 7 * 7, 4096),
+            nn.Linear(512 * 7 * 7, 1024),
             nn.ReLU(inplace=True),
             nn.Dropout(),
-            nn.Linear(4096, 4096),
+            nn.Linear(1024, 1024),
             nn.ReLU(inplace=True),
             nn.Dropout(),
-            nn.Linear(4096, num_classes)
+            nn.Linear(1024, num_classes)
         )
         for module in self.modules():
             if isinstance(module, nn.Conv2d):
