@@ -1,3 +1,4 @@
+from math import degrees
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -32,6 +33,11 @@ data_transforms = {
     "train": transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
+        transforms.RandomApply([
+            transforms.RandomHorizontalFlip(p=0.2),
+            transforms.RandomRotation(degrees=30),
+            transforms.RandomResizedCrop(224, scale=(0.8, 1.0), ratio=(0.75, 1.25))
+        ]),
         transforms.ToTensor(),
         transforms.Normalize(mean, std)
     ]),
@@ -126,7 +132,7 @@ model_conv = model.vgg(num_classes=len(class_names))
 model_conv = model_conv.to(device)
 
 criterion = nn.CrossEntropyLoss()
-optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001, weight_decay=0.005)
+optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001)
 scheduler = None
 
 train_model(model_conv, criterion, optimizer_conv, scheduler, num_epochs=num_epochs)
