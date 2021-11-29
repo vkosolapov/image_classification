@@ -126,7 +126,7 @@ model_conv = model.vgg(num_classes=len(class_names))
 model_conv = model_conv.to(device)
 
 criterion = nn.CrossEntropyLoss()
-optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001)
+optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001, weight_decay=0.005)
 scheduler = None
 
 train_model(model_conv, criterion, optimizer_conv, scheduler, num_epochs=num_epochs)
