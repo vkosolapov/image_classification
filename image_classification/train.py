@@ -125,10 +125,14 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=num_epochs, c
 
 
 # model_conv = torchvision.models.vgg11(pretrained=pretrained, num_classes=len(class_names))
-# if pretrained:
-#    for param in model_conv.parameters():
-#        param.requires_grad = False
-model_conv = model.vgg(num_classes=len(class_names))
+model_conv = torchvision.models.resnet18(pretrained=pretrained)
+if pretrained:
+    for param in model_conv.parameters():
+        param.requires_grad = False
+num_ftrs = model_conv.fc.in_features
+model_conv.fc = nn.Linear(num_ftrs, len(class_names))
+# model_conv = model.vgg(num_classes=len(class_names))
+
 model_conv = model_conv.to(device)
 
 criterion = nn.CrossEntropyLoss()
