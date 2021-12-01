@@ -13,6 +13,7 @@ import os
 import copy
 
 import model
+import optimizer
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -136,7 +137,8 @@ model_conv.fc = nn.Linear(num_ftrs, len(class_names))
 model_conv = model_conv.to(device)
 
 criterion = nn.CrossEntropyLoss()
-optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001)
+# optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001)
+optimizer_conv = optimizer.Ranger(model_conv.parameters(), lr=0.001)
 scheduler = None
 
 train_model(model_conv, criterion, optimizer_conv, scheduler, num_epochs=num_epochs)
