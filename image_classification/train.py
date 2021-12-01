@@ -14,6 +14,7 @@ import copy
 
 import model
 import optimizer
+import scheduler
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -138,7 +139,14 @@ model_conv = model_conv.to(device)
 
 criterion = nn.CrossEntropyLoss()
 # optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001)
-optimizer_conv = optimizer.Ranger(model_conv.parameters(), lr=0.001)
-scheduler = None
+optimizer_conv = optimizer.Ranger(model_conv.parameters(), lr=0.01)
+scheduler_conv = scheduler.CyclicCosineDecayLR(
+    optimizer_conv, 
+    warmup_start_lr=0.005,
+    init_decay_epochs=5,
+    min_decay_lr=0.001,
+    restart_lr=0.01,
+    restart_interval=5
+)
 
-train_model(model_conv, criterion, optimizer_conv, scheduler, num_epochs=num_epochs)
+train_model(model_conv, criterion, optimizer_conv, scheduler_conv, num_epochs=num_epochs)
