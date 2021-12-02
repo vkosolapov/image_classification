@@ -1,20 +1,19 @@
-from math import degrees
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-from torchvision import datasets, transforms
 from torch.utils.tensorboard import SummaryWriter
+
 import numpy as np
 import time
 import random
 from tqdm import tqdm
-import os
 import copy
 
-import model
-import optimizer
-import scheduler
+from data import DataLoader
+from model import VGG
+from optimizer import Ranger
+from scheduler import CyclicCosineDecayLR
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -24,48 +23,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 writer = SummaryWriter()
 
-mean = np.array([0.485, 0.456, 0.406])
-std = np.array([0.229, 0.224, 0.225])
-
+num_classes = 10
 batch_size = 64
 num_epochs = 20
 pretrained = False
 
-data_transforms = {
-    "train": transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.RandomApply([
-            transforms.RandomHorizontalFlip(p=0.2),
-            transforms.RandomRotation(degrees=30),
-            transforms.RandomResizedCrop(224, scale=(0.8, 1.0), ratio=(0.75, 1.25))
-        ]),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std)
-    ]),
-    "val": transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std)
-    ])
-}
-
-datadir = "data/imagenette2"
 sets = ["train", "val"]
-image_datasets = {
-    x: datasets.ImageFolder(os.path.join(datadir, x), data_transforms[x]) for x in sets
-}
-data_loaders = {
-    x: torch.utils.data.DataLoader(
-        image_datasets[x],
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=0
-    ) for x in sets
-}
-dataset_sizes = {x: len(image_datasets[x]) for x in sets}
-class_names = image_datasets["train"].classes
+data_loaders = {x: DataLoader(x, batch_size) for x in sets}
 
 
 def train_model(model, criterion, optimizer, scheduler, num_epochs=num_epochs, checkpoint_file=None):
@@ -86,7 +50,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=num_epochs, c
                 model.eval()
             running_loss = 0.0
             running_corrects = 0
-            for i, (inputs, labels) in tqdm(enumerate(data_loaders[phase])):
+            for i, (inputs, labels) in tqdm(enumerate(data_loaders[phase].data_loader)):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 with torch.set_grad_enabled(phase == "train"):
@@ -100,13 +64,13 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=num_epochs, c
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
                 acc = torch.sum(preds == labels.data) / len(preds)
-                writer.add_scalar(f"{phase} loss", loss.item(), dataset_sizes[phase] // batch_size * epoch + i)
-                writer.add_scalar(f"{phase} acc", acc, dataset_sizes[phase] // batch_size * epoch + i)
+                writer.add_scalar(f"{phase} loss", loss.item(), data_loaders[phase].dataset_size // batch_size * epoch + i)
+                writer.add_scalar(f"{phase} acc", acc, data_loaders[phase].dataset_size // batch_size * epoch + i)
                 writer.close()
             if phase == "train" and scheduler:
                 scheduler.step()
-            epoch_loss = running_loss / dataset_sizes[phase]
-            epoch_acc = running_corrects.double() / dataset_sizes[phase]
+            epoch_loss = running_loss / data_loaders[phase].dataset_size
+            epoch_acc = running_corrects.double() / data_loaders[phase].dataset_size
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
             checkpoint = {
                 "epoch": epoch,
@@ -132,15 +96,15 @@ if pretrained:
     for param in model_conv.parameters():
         param.requires_grad = False
 num_ftrs = model_conv.fc.in_features
-model_conv.fc = nn.Linear(num_ftrs, len(class_names))
+model_conv.fc = nn.Linear(num_ftrs, num_classes)
 # model_conv = model.VGG(num_classes=len(class_names))
 
 model_conv = model_conv.to(device)
 
 criterion = nn.CrossEntropyLoss()
 # optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001)
-optimizer_conv = optimizer.Ranger(model_conv.parameters(), lr=0.01)
-scheduler_conv = scheduler.CyclicCosineDecayLR(
+optimizer_conv = Ranger(model_conv.parameters(), lr=0.01)
+scheduler_conv = CyclicCosineDecayLR(
     optimizer_conv, 
     warmup_start_lr=0.005,
     init_decay_epochs=5,
