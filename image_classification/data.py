@@ -35,8 +35,11 @@ class DataLoader():
         data_loader = torch.utils.data.DataLoader(
             image_dataset,
             batch_size=batch_size,
-            shuffle=True,
-            num_workers=0
+            shuffle=(phase=="train"),
+            drop_last=(phase=="train"),
+            num_workers=1,
+            persistent_workers=True,
+            pin_memory=True
         )
         self.data_loader = data_loader
         self.dataset_size = len(image_dataset)
