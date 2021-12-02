@@ -1,8 +1,8 @@
 import torch.nn as nn
 
-class vgg(nn.Module):
+class VGG(nn.Module):
     def __init__(self, num_classes):
-        super(vgg, self).__init__()
+        super().__init__()
         self.model = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1),
             # nn.BatchNorm2d(num_features=64),
@@ -53,7 +53,7 @@ class vgg(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
 
-            # nn.AdaptiveAvgPool2d((7, 7)),
+            nn.AdaptiveAvgPool2d((7, 7)),
             nn.Flatten(),
             nn.Linear(512 * 7 * 7, 512),
             nn.ReLU(inplace=True),

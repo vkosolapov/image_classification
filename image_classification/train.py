@@ -133,7 +133,7 @@ if pretrained:
         param.requires_grad = False
 num_ftrs = model_conv.fc.in_features
 model_conv.fc = nn.Linear(num_ftrs, len(class_names))
-# model_conv = model.vgg(num_classes=len(class_names))
+# model_conv = model.VGG(num_classes=len(class_names))
 
 model_conv = model_conv.to(device)
 
