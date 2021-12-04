@@ -21,7 +21,8 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-writer = SummaryWriter()
+experiment_name = "001_custom_resnet18"
+writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
 batch_size = 64
@@ -37,8 +38,8 @@ def evaluate_minibatch(preds, labels, loss, running_loss, running_corrects, inpu
 
 
 def log_minibatch(phase, loss, acc, dataset_size, epoch, minibatch):
-    writer.add_scalar(f"{phase} loss", loss.item(), dataset_size // batch_size * epoch + minibatch)
-    writer.add_scalar(f"{phase} acc", acc, dataset_size // batch_size * epoch + minibatch)
+    writer.add_scalar(f"batch_loss/{phase}", loss.item(), dataset_size // batch_size * epoch + minibatch)
+    writer.add_scalar(f"batch_acc/{phase}", acc, dataset_size // batch_size * epoch + minibatch)
     writer.close()
 
 
@@ -48,7 +49,10 @@ def evaluate_epoch(running_loss, running_corrects, dataset_size):
     return epoch_loss, epoch_acc
 
 
-def log_epoch(phase, epoch_loss, epoch_acc):
+def log_epoch(phase, epoch_loss, epoch_acc, epoch):
+    writer.add_scalar(f"epoch_loss/{phase}", epoch_loss, epoch)
+    writer.add_scalar(f"epoch_acc/{phase}", epoch_acc, epoch)
+    writer.close()
     print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 
 
@@ -77,7 +81,7 @@ def train_epoch(model, data_loader, criterion, optimizer, scheduler, epoch):
         log_minibatch("train", loss, acc, data_loader.dataset_size, epoch, i)
     scheduler.step()
     epoch_loss, epoch_acc = evaluate_epoch(running_loss, running_corrects, data_loader.dataset_size)
-    log_epoch("train", epoch_loss, epoch_acc)
+    log_epoch("train", epoch_loss, epoch_acc, epoch)
     checkpoint = {
         "epoch": epoch,
         "model_state": model.state_dict(),
@@ -108,7 +112,7 @@ def test_epoch(model, data_loader, criterion, epoch):
         )
         log_minibatch("val", loss, acc, data_loader.dataset_size, epoch, i)
     epoch_loss, epoch_acc = evaluate_epoch(running_loss, running_corrects, data_loader.dataset_size)
-    log_epoch("val", epoch_loss, epoch_acc)
+    log_epoch("val", epoch_loss, epoch_acc, epoch)
     return epoch_acc
 
 
@@ -134,7 +138,7 @@ def train_model(model, data_loaders, criterion, optimizer, scheduler, num_epochs
     print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
     print('Best val Acc: {:4f}'.format(best_acc))
     model.load_state_dict(best_model_wts)
-    torch.save(model.state_dict(), "checkpoints/final.pt")
+    torch.save(model.state_dict(), f"checkpoints/final_{experiment_name}.pt")
     return model
 
 
