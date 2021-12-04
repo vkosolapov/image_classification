@@ -146,19 +146,10 @@ if __name__ == '__main__':
     sets = ["train", "val"]
     data_loaders = {x: DataLoader(x, batch_size) for x in sets}
 
-    # model_conv = torchvision.models.vgg11(pretrained=pretrained, num_classes=len(class_names))
-    # model_conv = torchvision.models.resnet18(pretrained=pretrained)
-    # if pretrained:
-    #    for param in model_conv.parameters():
-    #        param.requires_grad = False
-    # num_ftrs = model_conv.fc.in_features
-    # model_conv.fc = nn.Linear(num_ftrs, num_classes)
     model_conv = ResNet("resnet18", num_classes=num_classes)
-
     model_conv = model_conv.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    # optimizer_conv = optim.Adam(model_conv.parameters(), lr=0.001)
     optimizer_conv = Ranger(model_conv.parameters(), lr=0.01)
     scheduler_conv = CyclicCosineDecayLR(
         optimizer_conv, 
