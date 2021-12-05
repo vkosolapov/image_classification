@@ -109,4 +109,12 @@ dependencies:
   - zipp=3.6.0=pyhd8ed1ab_0
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.4.9=haebb681_0
+  - pip:
+    - packaging==21.3
+    - pandas==1.3.4
+    - pyparsing==3.0.6
+    - python-dateutil==2.8.2
+    - pytz==2021.3
+    - torch-tb-profiler==0.3.1
+    - torchmetrics==0.6.0
 prefix: /home/vladimir_kosolapov/miniconda3/envs/dl_course
