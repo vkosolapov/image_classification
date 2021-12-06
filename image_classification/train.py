@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-from torchmetrics import AUROC
+import torchmetrics
 from torch.utils.tensorboard import SummaryWriter
 
 import numpy as np
@@ -29,16 +29,15 @@ num_classes = 10
 batch_size = 64
 num_epochs = 20
 pretrained = False
-auroc = AUROC(num_classes=num_classes, average="macro")
+accuracy = torchmetrics.Accuracy(num_classes=num_classes)
+auroc = torchmetrics.AUROC(num_classes=num_classes, average="macro")
 
 
-def evaluate_minibatch(preds, probs, labels, loss, running_loss, running_corrects, running_auc, inputs_size):
-    acc = torch.sum(preds == labels.data) / len(preds)
-    auc = auroc(probs, labels)
+def evaluate_minibatch(preds, probs, labels, loss, running_loss, inputs_size):
+    acc = accuracy(preds.to("cpu"), labels.to("cpu"))
+    auc = auroc(probs.to("cpu"), labels.to("cpu"))
     running_loss += loss.item() * inputs_size
-    running_corrects += torch.sum(preds == labels.data)
-    running_auc += auc
-    return acc, auc, running_loss, running_corrects, running_auc
+    return acc, auc, running_loss
 
 
 def log_minibatch(phase, loss, acc, auc, dataset_size, epoch, minibatch):
@@ -48,10 +47,12 @@ def log_minibatch(phase, loss, acc, auc, dataset_size, epoch, minibatch):
     writer.close()
 
 
-def evaluate_epoch(running_loss, running_corrects, running_auc, dataset_size):
+def evaluate_epoch(running_loss, dataset_size):
     epoch_loss = running_loss / dataset_size
-    epoch_acc = running_corrects.double() / dataset_size
-    epoch_auc = running_auc / dataset_size * batch_size
+    epoch_acc = accuracy.compute()
+    accuracy.reset()
+    epoch_auc = auroc.compute()
+    auroc.reset()
     return epoch_loss, epoch_acc, epoch_auc
 
 
@@ -81,33 +82,29 @@ def log_norm(model, dataset_size, epoch, minibatch):
 def train_epoch(model, data_loader, criterion, optimizer, scheduler, epoch):
     model.train()
     running_loss = 0.0
-    running_corrects = 0
-    running_auc = 0.0
     for i, (inputs, labels) in tqdm(enumerate(data_loader.data_loader)):
         inputs = inputs.to(device)
         labels = labels.to(device)
         with torch.set_grad_enabled(True):
             outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
             loss = criterion(outputs, labels)
-            probs = torch.softmax(outputs.detach(), 1)
+            _, preds = torch.max(outputs, 1)
+            probs = torch.softmax(outputs, 1)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        acc, auc, running_loss, running_corrects, running_auc = evaluate_minibatch(
+        acc, auc, running_loss = evaluate_minibatch(
             preds, 
             probs,
             labels, 
             loss, 
             running_loss, 
-            running_corrects, 
-            running_auc,
             inputs.size(0), 
         )
         log_minibatch("train", loss, acc, auc, data_loader.dataset_size, epoch, i)
         log_norm(model, data_loader.dataset_size, epoch, i)
     scheduler.step()
-    epoch_loss, epoch_acc, epoch_auc = evaluate_epoch(running_loss, running_corrects, running_auc, data_loader.dataset_size)
+    epoch_loss, epoch_acc, epoch_auc = evaluate_epoch(running_loss, data_loader.dataset_size)
     log_epoch("train", epoch_loss, epoch_acc, epoch_auc, epoch)
     checkpoint = {
         "epoch": epoch,
@@ -121,28 +118,24 @@ def train_epoch(model, data_loader, criterion, optimizer, scheduler, epoch):
 def test_epoch(model, data_loader, criterion, epoch):
     model.eval()
     running_loss = 0.0
-    running_corrects = 0
-    running_auc = 0.0
     for i, (inputs, labels) in tqdm(enumerate(data_loader.data_loader)):
         inputs = inputs.to(device)
         labels = labels.to(device)
         with torch.set_grad_enabled(False):
             outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
             loss = criterion(outputs, labels)
-            probs = torch.softmax(outputs.detach(), 1)
-        acc, auc, running_loss, running_corrects, running_auc = evaluate_minibatch(
+            _, preds = torch.max(outputs, 1)
+            probs = torch.softmax(outputs, 1)
+        acc, auc, running_loss = evaluate_minibatch(
             preds, 
             probs,
             labels, 
             loss, 
             running_loss, 
-            running_corrects, 
-            running_auc,
             inputs.size(0), 
         )
         log_minibatch("val", loss, acc, auc, data_loader.dataset_size, epoch, i)
-    epoch_loss, epoch_acc, epoch_auc = evaluate_epoch(running_loss, running_corrects, running_auc, data_loader.dataset_size)
+    epoch_loss, epoch_acc, epoch_auc = evaluate_epoch(running_loss, data_loader.dataset_size)
     log_epoch("val", epoch_loss, epoch_acc, epoch_auc, epoch)
     return epoch_acc
 
