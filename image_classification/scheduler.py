@@ -14,6 +14,7 @@ class CyclicCosineDecayLR(_LRScheduler):
         restart_lr=None,
         warmup_epochs=None,
         warmup_start_lr=None,
+        warmup_linear=False,
         last_epoch=-1,
         verbose=False
     ):
@@ -55,6 +56,7 @@ class CyclicCosineDecayLR(_LRScheduler):
         group_num = len(optimizer.param_groups)
         self._warmup_start_lr = [warmup_start_lr] * group_num if isinstance(warmup_start_lr, float) else warmup_start_lr
         self._warmup_epochs = 0 if warmup_epochs is None else warmup_epochs
+        self._warmup_linear = warmup_linear
         self._init_decay_epochs = init_decay_epochs
         self._min_decay_lr = [min_decay_lr] * group_num if isinstance(min_decay_lr, float) else min_decay_lr
         self._restart_lr = [restart_lr] * group_num if isinstance(restart_lr, float) else restart_lr
@@ -64,6 +66,12 @@ class CyclicCosineDecayLR(_LRScheduler):
 
     def get_lr(self):
         if self._warmup_epochs > 0 and self.last_epoch < self._warmup_epochs:
+            if self._warmup_linear:
+                return [
+                    group["lr"] + (base_lr - warmup_start_lr) / (self._warmup_epochs - 1)
+                    for warmup_start_lr, base_lr, group 
+                    in zip(self._warmup_start_lr, self.base_lrs, self.optimizer.param_groups)
+                ]
             return self._calc(
                 self.last_epoch,
                 self._warmup_epochs,
