@@ -15,6 +15,7 @@ from data import DataLoader
 from model import ResNet
 from optimizer import Ranger
 from scheduler import CyclicCosineDecayLR
+from gradinit.gradinit_utils import gradinit
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -22,7 +23,7 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "010_put_it_all_together"
+experiment_name = "011_gradinit"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
@@ -185,5 +186,6 @@ if __name__ == '__main__':
         restart_lr=0.01,
         restart_interval=5
     )
+    gradinit(model_conv, data_loaders["train"].data_loader)
 
     train_model(model_conv, data_loaders, criterion, optimizer_conv, scheduler_conv, num_epochs=num_epochs)
