@@ -14,8 +14,8 @@ data_transforms = {
         transforms.CenterCrop(224),
         transforms.RandomApply([
             transforms.RandomHorizontalFlip(p=0.2),
-            transforms.RandomRotation(degrees=30),
-            transforms.RandomResizedCrop(224, scale=(0.8, 1.0), ratio=(0.75, 1.25))
+            transforms.RandomRotation(degrees=15),
+            transforms.RandomResizedCrop(224, scale=(0.9, 1.0), ratio=(0.9, 1.1))
         ]),
         transforms.ToTensor(),
         transforms.Normalize(mean, std)

@@ -22,7 +22,7 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "001_custom_resnet18"
+experiment_name = "010_put_it_all_together"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
@@ -174,10 +174,12 @@ if __name__ == '__main__':
     model_conv = model_conv.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer_conv = Ranger(model_conv.parameters(), lr=0.01)
+    optimizer_conv = Ranger(model_conv.parameters(), lr=0.01, weight_decay=0.0001)
     scheduler_conv = CyclicCosineDecayLR(
         optimizer_conv, 
+        warmup_epochs=5,
         warmup_start_lr=0.005,
+        warmup_linear=False,
         init_decay_epochs=5,
         min_decay_lr=0.001,
         restart_lr=0.01,
