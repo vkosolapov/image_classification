@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torchvision
 import torchmetrics
+import torch.optim as optim
+from torchcontrib.optim import SWA
 from torch.utils.tensorboard import SummaryWriter
 
 import numpy as np
@@ -23,7 +24,7 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "011_gradinit"
+experiment_name = "012_SWA"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
@@ -104,7 +105,17 @@ def train_epoch(model, data_loader, criterion, optimizer, scheduler, epoch):
         )
         log_minibatch("train", loss, acc, auc, data_loader.dataset_size, epoch, i)
         log_norm(model, data_loader.dataset_size, epoch, i)
-    scheduler.step()
+    if scheduler:
+        scheduler.step()
+    if isinstance(optimizer, SWA):
+        if isinstance(scheduler, CyclicCosineDecayLR):
+            if (
+                epoch >= scheduler._warmup_epochs + scheduler._init_decay_epochs 
+                and (epoch + 1) % scheduler._restart_interval == 0
+            ):
+                optimizer.update_swa()
+        optimizer.swap_swa_sgd()
+        optimizer.bn_update(data_loader.data_loader, model, device=device)
     epoch_loss, epoch_acc, epoch_auc = evaluate_epoch(running_loss, data_loader.dataset_size)
     log_epoch("train", epoch_loss, epoch_acc, epoch_auc, epoch)
     checkpoint = {
@@ -141,7 +152,7 @@ def test_epoch(model, data_loader, criterion, epoch):
     return epoch_acc
 
 
-def train_model(model, data_loaders, criterion, optimizer, scheduler, num_epochs=num_epochs, checkpoint_file=None):
+def train_model(model, data_loaders, criterion, optimizer, scheduler=None, num_epochs=num_epochs, checkpoint_file=None):
     since = time.time()
     if checkpoint_file:
         checkpoint = torch.load(checkpoint_file)
@@ -174,8 +185,12 @@ if __name__ == '__main__':
     model_conv = ResNet("resnet18", num_classes=num_classes)
     model_conv = model_conv.to(device)
 
+    gradinit(model_conv, data_loaders["train"].data_loader)
+
     criterion = nn.CrossEntropyLoss()
     optimizer_conv = Ranger(model_conv.parameters(), lr=0.01, weight_decay=0.0001)
+    # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
+    swa = SWA(optimizer_conv)
     scheduler_conv = CyclicCosineDecayLR(
         optimizer_conv, 
         warmup_epochs=5,
@@ -186,6 +201,5 @@ if __name__ == '__main__':
         restart_lr=0.01,
         restart_interval=5
     )
-    gradinit(model_conv, data_loaders["train"].data_loader)
 
-    train_model(model_conv, data_loaders, criterion, optimizer_conv, scheduler_conv, num_epochs=num_epochs)
+    train_model(model_conv, data_loaders, criterion, swa, scheduler_conv, num_epochs=num_epochs)
