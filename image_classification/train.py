@@ -24,12 +24,12 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "012_SWA"
+experiment_name = "001_early_stopping"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
 batch_size = 64
-num_epochs = 20
+num_epochs = 200
 pretrained = False
 accuracy = torchmetrics.Accuracy(num_classes=num_classes)
 auroc = torchmetrics.AUROC(num_classes=num_classes, average="macro")
@@ -165,9 +165,11 @@ def train_model(
     optimizer,
     scheduler=None,
     num_epochs=num_epochs,
+    early_stopping=None,
     checkpoint_file=None,
 ):
     since = time.time()
+    early_stopping_counter = 0
     if checkpoint_file:
         checkpoint = torch.load(checkpoint_file)
         model.load_state_dict(checkpoint["model_state"])
@@ -185,6 +187,11 @@ def train_model(
         if epoch_acc > best_acc:
             best_acc = epoch_acc
             best_model_wts = copy.deepcopy(model.state_dict())
+            early_stopping_counter = 0
+        else:
+            early_stopping_counter += 1
+            if early_stopping and early_stopping_counter >= early_stopping:
+                break
         print()
     time_elapsed = time.time() - since
     print(
@@ -205,12 +212,12 @@ if __name__ == "__main__":
     model_conv = ResNet("resnet18", num_classes=num_classes)
     model_conv = model_conv.to(device)
 
-    gradinit(model_conv, data_loaders["train"].data_loader)
+    # gradinit(model_conv, data_loaders["train"].data_loader)
 
     criterion = nn.CrossEntropyLoss()
     optimizer_conv = Ranger(model_conv.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
-    swa = SWA(optimizer_conv)
+    # swa = SWA(optimizer_conv)
     scheduler_conv = CyclicCosineDecayLR(
         optimizer_conv,
         warmup_epochs=5,
@@ -223,6 +230,12 @@ if __name__ == "__main__":
     )
 
     train_model(
-        model_conv, data_loaders, criterion, swa, scheduler_conv, num_epochs=num_epochs
+        model_conv,
+        data_loaders,
+        criterion,
+        optimizer_conv,  # swa,
+        scheduler_conv,
+        num_epochs=num_epochs,
+        early_stopping=10,
     )
 
