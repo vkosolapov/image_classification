@@ -14,7 +14,7 @@ import copy
 
 from data import DataLoader
 from model import ResNet
-from loss import FocalLoss, LabelSmoothingLoss
+from loss import LabelSmoothingFocalLoss
 from optimizer import Ranger
 from scheduler import CyclicCosineDecayLR
 from gradinit.gradinit_utils import gradinit
@@ -25,7 +25,7 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "003_label_smoothing"
+experiment_name = "004_both_loss_modifications"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
@@ -216,8 +216,7 @@ if __name__ == "__main__":
     # gradinit(model_conv, data_loaders["train"].data_loader)
 
     # criterion = nn.CrossEntropyLoss()
-    # criterion = FocalLoss(gamma=2)
-    criterion = LabelSmoothingLoss(num_classes, smoothing=0.1)
+    criterion = LabelSmoothingFocalLoss(num_classes, gamma=2, smooth=0.1)
     optimizer_conv = Ranger(model_conv.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
     # swa = SWA(optimizer_conv)

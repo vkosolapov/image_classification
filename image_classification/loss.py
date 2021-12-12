@@ -1,65 +1,65 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn.modules.loss import _WeightedLoss
-import torch.nn.functional as F
-from torch.autograd import Variable
 
 
-class FocalLoss(nn.Module):
-    def __init__(self, gamma=0, alpha=None, size_average=True):
+class LabelSmoothingFocalLoss(nn.Module):
+    def __init__(
+        self,
+        num_class,
+        gamma=0,
+        alpha=None,
+        balance_index=-1,
+        smooth=None,
+        size_average=True,
+    ):
         super().__init__()
+        self.num_class = num_class
         self.gamma = gamma
         self.alpha = alpha
-        if isinstance(alpha, (float, int)):
-            self.alpha = torch.Tensor([alpha, 1 - alpha])
-        if isinstance(alpha, list):
-            self.alpha = torch.Tensor(alpha)
+        self.smooth = smooth
         self.size_average = size_average
-
-    def forward(self, input, target):
-        if input.dim() > 2:
-            input = input.view(input.size(0), input.size(1), -1)
-            input = input.transpose(1, 2)
-            input = input.contiguous().view(-1, input.size(2))
-        target = target.view(-1, 1)
-
-        logpt = F.log_softmax(input)
-        logpt = logpt.gather(1, target)
-        logpt = logpt.view(-1)
-        pt = Variable(logpt.data.exp())
-
-        if self.alpha is not None:
-            if self.alpha.type() != input.data.type():
-                self.alpha = self.alpha.type_as(input.data)
-            at = self.alpha.gather(0, target.data.view(-1))
-            logpt = logpt * Variable(at)
-
-        loss = -1 * (1 - pt) ** self.gamma * logpt
-        if self.size_average:
-            return loss.mean()
+        if self.alpha is None:
+            self.alpha = torch.ones(self.num_class, 1)
+        elif isinstance(self.alpha, (list, np.ndarray)):
+            if len(self.alpha) != self.num_class:
+                raise AssertionError
+            self.alpha = torch.FloatTensor(alpha).view(self.num_class, 1)
+            self.alpha = self.alpha / self.alpha.sum()
+        elif isinstance(self.alpha, float):
+            alpha = torch.ones(self.num_class, 1)
+            alpha = alpha * (1 - self.alpha)
+            alpha[balance_index] = self.alpha
+            self.alpha = alpha
         else:
-            return loss.sum()
+            raise TypeError("Not support alpha type")
+        if self.smooth is not None:
+            if self.smooth < 0 or self.smooth > 1.0:
+                raise ValueError("smooth value should be in [0,1]")
 
-
-class LabelSmoothingLoss(nn.Module):
-    def __init__(self, classes, smoothing=0.0, dim=-1, weight=None):
-        super().__init__()
-        self.confidence = 1.0 - smoothing
-        self.smoothing = smoothing
-        self.weight = weight
-        self.cls = classes
-        self.dim = dim
-
-    def forward(self, pred, target):
-        assert 0 <= self.smoothing < 1
-        pred = pred.log_softmax(dim=self.dim)
-
-        if self.weight is not None:
-            pred = pred * self.weight.unsqueeze(0)
-
-        with torch.no_grad():
-            true_dist = torch.zeros_like(pred)
-            true_dist.fill_(self.smoothing / (self.cls - 1))
-            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
-        return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+    def forward(self, logits, labels):
+        if logits.dim() > 2:
+            logits = logits.view(logits.size(0), logits.size(1), -1)
+            logits = logits.permute(0, 2, 1).contiguous()
+            logits = logits.view(-1, logits.size(-1))
+        labels = labels.view(-1, 1)
+        epsilon = 1e-10
+        alpha = self.alpha.to(logits.device)
+        idx = labels.cpu().long()
+        one_hot_key = torch.FloatTensor(labels.size(0), self.num_class).zero_()
+        one_hot_key = one_hot_key.scatter_(1, idx, 1)
+        one_hot_key = one_hot_key.to(logits.device)
+        if self.smooth:
+            one_hot_key = torch.clamp(
+                one_hot_key, self.smooth / (self.num_class - 1), 1.0 - self.smooth
+            )
+        pt = (one_hot_key * logits).sum(1) + epsilon
+        logpt = pt.log()
+        gamma = self.gamma
+        alpha = alpha[idx]
+        loss = -1 * alpha * torch.pow((1 - pt), gamma) * logpt
+        if self.size_average:
+            loss = loss.mean()
+        else:
+            loss = loss.sum()
+        return loss
