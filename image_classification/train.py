@@ -216,7 +216,7 @@ if __name__ == "__main__":
     # gradinit(model_conv, data_loaders["train"].data_loader)
 
     # criterion = nn.CrossEntropyLoss()
-    criterion = LabelSmoothingFocalLoss(num_classes, gamma=2, smooth=0.1)
+    criterion = LabelSmoothingFocalLoss(num_classes=num_classes, gamma=2, smoothing=0.1)
     optimizer_conv = Ranger(model_conv.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
     # swa = SWA(optimizer_conv)
