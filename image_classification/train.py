@@ -25,7 +25,7 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "004_both_loss_modifications"
+experiment_name = "006_add_gradinit_and_swa"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
@@ -213,13 +213,13 @@ if __name__ == "__main__":
     model_conv = ResNet("resnet18", num_classes=num_classes)
     model_conv = model_conv.to(device)
 
-    # gradinit(model_conv, data_loaders["train"].data_loader)
+    gradinit(model_conv, data_loaders["train"].data_loader)
 
     # criterion = nn.CrossEntropyLoss()
     criterion = LabelSmoothingFocalLoss(num_classes=num_classes, gamma=2, smoothing=0.1)
     optimizer_conv = Ranger(model_conv.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
-    # swa = SWA(optimizer_conv)
+    swa = SWA(optimizer_conv)
     scheduler_conv = CyclicCosineDecayLR(
         optimizer_conv,
         warmup_epochs=5,
@@ -228,16 +228,16 @@ if __name__ == "__main__":
         init_decay_epochs=5,
         min_decay_lr=0.001,
         restart_lr=0.01,
-        restart_interval=5,
+        restart_interval=10,
     )
 
     train_model(
         model_conv,
         data_loaders,
         criterion,
-        optimizer_conv,  # swa,
+        swa,
         scheduler_conv,
         num_epochs=num_epochs,
-        early_stopping=10,
+        early_stopping=20,
     )
 

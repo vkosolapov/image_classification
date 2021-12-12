@@ -8,7 +8,7 @@ import os
 
 default_args = {
     "gradinit_lr": 1e-3,
-    "gradinit_iters": 100,
+    "gradinit_iters": 300,
     "gradinit_alg": "sgd",
     "gradinit_eta": 0.1,
     "gradinit_min_scale": 0.01,
