@@ -25,7 +25,7 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "006_add_gradinit_and_swa"
+experiment_name = "007_base_aug"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
