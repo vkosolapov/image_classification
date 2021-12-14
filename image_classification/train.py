@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchmetrics
+from torch.autograd import Variable
 import torch.optim as optim
 from torchcontrib.optim import SWA
 from torch.utils.tensorboard import SummaryWriter
@@ -15,6 +16,7 @@ import copy
 from data import DataLoader
 from model import ResNet
 from loss import LabelSmoothingFocalLoss
+from augmentation import cutmixup_data, cutmixup_criterion
 from optimizer import Ranger
 from scheduler import CyclicCosineDecayLR
 from gradinit.gradinit_utils import gradinit
@@ -25,7 +27,7 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "012_CutOut"
+experiment_name = "013_mixup_cutmix"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
@@ -94,15 +96,35 @@ def log_norm(model, dataset_size, epoch, minibatch):
     writer.close()
 
 
-def train_epoch(model, data_loader, criterion, optimizer, scheduler, epoch):
+def train_epoch(
+    model,
+    data_loader,
+    criterion,
+    optimizer,
+    scheduler,
+    mixup,
+    cutmix,
+    cutmixup_alpha,
+    epoch,
+):
     model.train()
     running_loss = 0.0
     for i, (inputs, labels) in tqdm(enumerate(data_loader.data_loader)):
         inputs = inputs.to(device)
         labels = labels.to(device)
+        if mixup or cutmix:
+            inputs, labels_a, labels_b, lambda_ = cutmixup_data(
+                inputs, labels, mixup, cutmix, alpha=cutmixup_alpha, device=device
+            )
+            inputs, labels_a, labels_b = map(Variable, (inputs, labels_a, labels_b))
         with torch.set_grad_enabled(True):
             outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            if mixup or cutmix:
+                loss = cutmixup_criterion(
+                    criterion, outputs, labels_a, labels_b, lambda_
+                )
+            else:
+                loss = criterion(outputs, labels)
             _, preds = torch.max(outputs, 1)
             probs = torch.softmax(outputs, 1)
             optimizer.zero_grad()
@@ -165,6 +187,9 @@ def train_model(
     criterion,
     optimizer,
     scheduler=None,
+    mixup=False,
+    cutmix=False,
+    cutmixup_alpha=1.0,
     num_epochs=num_epochs,
     early_stopping=None,
     checkpoint_file=None,
@@ -182,7 +207,15 @@ def train_model(
         print("Epoch {}/{}".format(epoch, num_epochs - 1))
         print("-" * 10)
         train_epoch(
-            model, data_loaders["train"], criterion, optimizer, scheduler, epoch
+            model,
+            data_loaders["train"],
+            criterion,
+            optimizer,
+            scheduler,
+            mixup,
+            cutmix,
+            cutmixup_alpha,
+            epoch,
         )
         epoch_acc = test_epoch(model, data_loaders["val"], criterion, epoch)
         if epoch_acc > best_acc:
@@ -237,6 +270,9 @@ if __name__ == "__main__":
         criterion,
         swa,
         scheduler_conv,
+        mixup=True,
+        cutmix=True,
+        cutmixup_alpha=0.2,
         num_epochs=num_epochs,
         early_stopping=20,
     )
