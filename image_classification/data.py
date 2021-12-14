@@ -1,4 +1,5 @@
 import os
+from albumentations.augmentations.transforms import CoarseDropout
 import numpy as np
 import torch
 from torchvision import datasets, transforms
@@ -45,7 +46,9 @@ augmentation_pipeline = A.Compose(
             ],
             p=0.5,
         ),
-        A.OneOf([A.GaussNoise(p=0.5), A.Blur(p=0.5),], p=0.5),
+        A.OneOf(
+            [A.GaussNoise(p=0.5), A.Blur(p=0.5), CoarseDropout(max_holes=5)], p=0.5
+        ),
     ],
     p=1,
 )

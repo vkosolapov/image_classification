@@ -25,7 +25,7 @@ random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-experiment_name = "010_all_aug"
+experiment_name = "012_CutOut"
 writer = SummaryWriter(f"./runs/{experiment_name}")
 
 num_classes = 10
@@ -210,7 +210,7 @@ if __name__ == "__main__":
     sets = ["train", "val"]
     data_loaders = {x: DataLoader(x, batch_size) for x in sets}
 
-    model_conv = ResNet("resnet18", num_classes=num_classes)
+    model_conv = ResNet("resnet34", num_classes=num_classes)
     model_conv = model_conv.to(device)
 
     gradinit(model_conv, data_loaders["train"].data_loader)
