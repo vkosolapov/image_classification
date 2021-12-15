@@ -36,8 +36,8 @@ if __name__ == "__main__":
         init_decay_epochs=5,
         min_decay_lr=0.001,
         restart_lr=0.01,
-        restart_interval=5,
-        restart_interval_multiplier=2.0,
+        restart_interval=10,
+        # restart_interval_multiplier=2.0,
     )
 
     grad_init = {
