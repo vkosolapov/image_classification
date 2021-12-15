@@ -1,279 +1,123 @@
+import random
+import numpy as np
 import torch
-import torch.nn as nn
-import torchvision
-import torchmetrics
-from torch.autograd import Variable
-import torch.optim as optim
-from torchcontrib.optim import SWA
+
 from torch.utils.tensorboard import SummaryWriter
 
-import numpy as np
-import time
-import random
-from tqdm import tqdm
-import copy
-
-from data import DataLoader
+from train_loop import TrainLoop
+import albumentations as A
+from albumentations.augmentations.transforms import CoarseDropout
 from model import ResNet
 from loss import LabelSmoothingFocalLoss
-from augmentation import cutmixup_data, cutmixup_criterion
+import torchmetrics
 from optimizer import Ranger
 from scheduler import CyclicCosineDecayLR
-from gradinit.gradinit_utils import gradinit
+from torchcontrib.optim import SWA
 
-torch.manual_seed(0)
-np.random.seed(0)
 random.seed(0)
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-experiment_name = "013_mixup_cutmix"
-writer = SummaryWriter(f"./runs/{experiment_name}")
-
-num_classes = 10
-batch_size = 64
-num_epochs = 200
-pretrained = False
-accuracy = torchmetrics.Accuracy(num_classes=num_classes)
-auroc = torchmetrics.AUROC(num_classes=num_classes, average="macro")
-
-
-def evaluate_minibatch(preds, probs, labels, loss, running_loss, inputs_size):
-    acc = accuracy(preds.to("cpu"), labels.to("cpu"))
-    auc = auroc(probs.to("cpu"), labels.to("cpu"))
-    running_loss += loss.item() * inputs_size
-    return acc, auc, running_loss
-
-
-def log_minibatch(phase, loss, acc, auc, dataset_size, epoch, minibatch):
-    writer.add_scalar(
-        f"batch_loss/{phase}",
-        loss.item(),
-        dataset_size // batch_size * epoch + minibatch,
-    )
-    writer.add_scalar(
-        f"batch_acc/{phase}", acc, dataset_size // batch_size * epoch + minibatch
-    )
-    writer.add_scalar(
-        f"batch_auc/{phase}", auc, dataset_size // batch_size * epoch + minibatch
-    )
-    writer.close()
-
-
-def evaluate_epoch(running_loss, dataset_size):
-    epoch_loss = running_loss / dataset_size
-    epoch_acc = accuracy.compute()
-    accuracy.reset()
-    epoch_auc = auroc.compute()
-    auroc.reset()
-    return epoch_loss, epoch_acc, epoch_auc
-
-
-def log_epoch(phase, epoch_loss, epoch_acc, epoch_auc, epoch):
-    writer.add_scalar(f"epoch_loss/{phase}", epoch_loss, epoch)
-    writer.add_scalar(f"epoch_acc/{phase}", epoch_acc, epoch)
-    writer.add_scalar(f"epoch_auc/{phase}", epoch_auc, epoch)
-    writer.close()
-    print("{} Loss: {:.4f} Acc: {:.4f}".format(phase, epoch_loss, epoch_acc))
-
-
-def log_norm(model, dataset_size, epoch, minibatch):
-    total_param_norm = 0
-    total_grad_norm = 0
-    for p in model.parameters():
-        param_norm = p.detach().data.norm(2)
-        total_param_norm += param_norm.item() ** 2
-        grad_norm = p.grad.detach().data.norm(2)
-        total_grad_norm += grad_norm.item() ** 2
-    total_param_norm = total_param_norm ** (0.5)
-    total_grad_norm = total_grad_norm ** (0.5)
-    writer.add_scalar(
-        f"norm/param", total_param_norm, dataset_size // batch_size * epoch + minibatch
-    )
-    writer.add_scalar(
-        f"norm/grad", total_grad_norm, dataset_size // batch_size * epoch + minibatch
-    )
-    writer.close()
-
-
-def train_epoch(
-    model,
-    data_loader,
-    criterion,
-    optimizer,
-    scheduler,
-    mixup,
-    cutmix,
-    cutmixup_alpha,
-    epoch,
-):
-    model.train()
-    running_loss = 0.0
-    for i, (inputs, labels) in tqdm(enumerate(data_loader.data_loader)):
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-        if mixup or cutmix:
-            inputs, labels_a, labels_b, lambda_ = cutmixup_data(
-                inputs, labels, mixup, cutmix, alpha=cutmixup_alpha, device=device
-            )
-            inputs, labels_a, labels_b = map(Variable, (inputs, labels_a, labels_b))
-        with torch.set_grad_enabled(True):
-            outputs = model(inputs)
-            if mixup or cutmix:
-                loss = cutmixup_criterion(
-                    criterion, outputs, labels_a, labels_b, lambda_
-                )
-            else:
-                loss = criterion(outputs, labels)
-            _, preds = torch.max(outputs, 1)
-            probs = torch.softmax(outputs, 1)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        acc, auc, running_loss = evaluate_minibatch(
-            preds, probs, labels, loss, running_loss, inputs.size(0),
-        )
-        log_minibatch("train", loss, acc, auc, data_loader.dataset_size, epoch, i)
-        log_norm(model, data_loader.dataset_size, epoch, i)
-    if scheduler:
-        scheduler.step()
-    if isinstance(optimizer, SWA):
-        if isinstance(scheduler, CyclicCosineDecayLR):
-            if (
-                epoch >= scheduler._warmup_epochs + scheduler._init_decay_epochs
-                and (epoch + 1) % scheduler._restart_interval == 0
-            ):
-                optimizer.update_swa()
-        optimizer.swap_swa_sgd()
-        optimizer.bn_update(data_loader.data_loader, model, device=device)
-    epoch_loss, epoch_acc, epoch_auc = evaluate_epoch(
-        running_loss, data_loader.dataset_size
-    )
-    log_epoch("train", epoch_loss, epoch_acc, epoch_auc, epoch)
-    checkpoint = {
-        "epoch": epoch,
-        "model_state": model.state_dict(),
-        "optim_state": optimizer.state_dict(),
-        "scheduler_state": scheduler.state_dict(),
-    }
-    torch.save(checkpoint, f"checkpoints/checkpoint_{epoch}.pth")
-
-
-def test_epoch(model, data_loader, criterion, epoch):
-    model.eval()
-    running_loss = 0.0
-    for i, (inputs, labels) in tqdm(enumerate(data_loader.data_loader)):
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-        with torch.set_grad_enabled(False):
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            _, preds = torch.max(outputs, 1)
-            probs = torch.softmax(outputs, 1)
-        acc, auc, running_loss = evaluate_minibatch(
-            preds, probs, labels, loss, running_loss, inputs.size(0),
-        )
-        log_minibatch("val", loss, acc, auc, data_loader.dataset_size, epoch, i)
-    epoch_loss, epoch_acc, epoch_auc = evaluate_epoch(
-        running_loss, data_loader.dataset_size
-    )
-    log_epoch("val", epoch_loss, epoch_acc, epoch_auc, epoch)
-    return epoch_acc
-
-
-def train_model(
-    model,
-    data_loaders,
-    criterion,
-    optimizer,
-    scheduler=None,
-    mixup=False,
-    cutmix=False,
-    cutmixup_alpha=1.0,
-    num_epochs=num_epochs,
-    early_stopping=None,
-    checkpoint_file=None,
-):
-    since = time.time()
-    early_stopping_counter = 0
-    if checkpoint_file:
-        checkpoint = torch.load(checkpoint_file)
-        model.load_state_dict(checkpoint["model_state"])
-        optimizer.load_state_dict(checkpoint["optim_state"])
-        scheduler.load_state_dict(checkpoint["scheduler_state"])
-    best_model_wts = copy.deepcopy(model.state_dict())
-    best_acc = 0.0
-    for epoch in range(num_epochs):
-        print("Epoch {}/{}".format(epoch, num_epochs - 1))
-        print("-" * 10)
-        train_epoch(
-            model,
-            data_loaders["train"],
-            criterion,
-            optimizer,
-            scheduler,
-            mixup,
-            cutmix,
-            cutmixup_alpha,
-            epoch,
-        )
-        epoch_acc = test_epoch(model, data_loaders["val"], criterion, epoch)
-        if epoch_acc > best_acc:
-            best_acc = epoch_acc
-            best_model_wts = copy.deepcopy(model.state_dict())
-            early_stopping_counter = 0
-        else:
-            early_stopping_counter += 1
-            if early_stopping and early_stopping_counter >= early_stopping:
-                break
-        print()
-    time_elapsed = time.time() - since
-    print(
-        "Training complete in {:.0f}m {:.0f}s".format(
-            time_elapsed // 60, time_elapsed % 60
-        )
-    )
-    print("Best val Acc: {:4f}".format(best_acc))
-    model.load_state_dict(best_model_wts)
-    torch.save(model.state_dict(), f"checkpoints/final_{experiment_name}.pt")
-    return model
+np.random.seed(0)
+torch.manual_seed(0)
+torch.cuda.manual_seed_all(0)
 
 
 if __name__ == "__main__":
-    sets = ["train", "val"]
-    data_loaders = {x: DataLoader(x, batch_size) for x in sets}
+    num_classes = 10
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = ResNet("resnet34", num_classes=num_classes).to(device)
 
-    model_conv = ResNet("resnet34", num_classes=num_classes)
-    model_conv = model_conv.to(device)
-
-    gradinit(model_conv, data_loaders["train"].data_loader)
-
-    # criterion = nn.CrossEntropyLoss()
-    criterion = LabelSmoothingFocalLoss(num_classes=num_classes, gamma=2, smoothing=0.1)
-    optimizer_conv = Ranger(model_conv.parameters(), lr=0.01, weight_decay=0.0001)
+    optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
-    swa = SWA(optimizer_conv)
-    scheduler_conv = CyclicCosineDecayLR(
-        optimizer_conv,
+    swa = SWA(optimizer)
+    scheduler = CyclicCosineDecayLR(
+        optimizer,
         warmup_epochs=5,
         warmup_start_lr=0.005,
         warmup_linear=False,
         init_decay_epochs=5,
         min_decay_lr=0.001,
         restart_lr=0.01,
-        restart_interval=10,
+        restart_interval=5,
+        restart_interval_multiplier=2.0,
     )
 
-    train_model(
-        model_conv,
-        data_loaders,
-        criterion,
-        swa,
-        scheduler_conv,
+    grad_init = {
+        "gradinit_lr": 1e-3,
+        "gradinit_iters": 300,
+        "gradinit_alg": "adam",
+        "gradinit_eta": 0.1,
+        "gradinit_min_scale": 0.01,
+        "gradinit_grad_clip": 1,
+        "gradinit_gamma": float("inf"),
+        "gradinit_normalize_grad": False,
+        "gradinit_resume": "",
+        "gradinit_bsize": -1,
+        "batch_no_overlap": False,
+        "expname": "default",
+    }
+
+    augmentations = A.Compose(
+        [
+            A.OneOf(
+                [
+                    A.ShiftScaleRotate(),
+                    A.RandomResizedCrop(256, 256),
+                    A.HorizontalFlip(),
+                    # A.VerticalFlip(),
+                    # A.Transpose(),
+                ],
+                p=1.0,
+            ),
+            A.OneOf(
+                [
+                    A.RandomGamma(),
+                    A.RGBShift(),
+                    A.RandomBrightnessContrast(
+                        brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1),
+                    ),
+                    A.HueSaturationValue(
+                        hue_shift_limit=20, sat_shift_limit=20, val_shift_limit=20,
+                    ),
+                ],
+                p=1.0,
+            ),
+            A.OneOf(
+                [
+                    A.ElasticTransform(
+                        alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03
+                    ),
+                    A.GridDistortion(),
+                    A.OpticalDistortion(distort_limit=2, shift_limit=0.5),
+                ],
+                p=0.5,
+            ),
+            A.OneOf(
+                [A.GaussNoise(p=0.5), A.Blur(p=0.5), CoarseDropout(max_holes=5)], p=0.5
+            ),
+        ],
+        p=1,
+    )
+
+    loop = TrainLoop(
+        experiment_name="014_refactoring",
+        device=device,
+        datadir="data/imagenette2",
+        batch_size=64,
+        augmentations=augmentations,
+        model=model,
+        optimizer=swa,
+        num_epochs=500,
+        criterion=LabelSmoothingFocalLoss(
+            num_classes=num_classes, gamma=2, smoothing=0.1
+        ),
+        accuracy=torchmetrics.Accuracy(num_classes=num_classes),
+        auroc=torchmetrics.AUROC(num_classes=num_classes, average="macro"),
+        grad_init=grad_init,
+        scheduler=scheduler,
         mixup=True,
         cutmix=True,
         cutmixup_alpha=0.2,
-        num_epochs=num_epochs,
         early_stopping=20,
     )
+
+    loop.train_model()
 

@@ -107,9 +107,9 @@ class CyclicCosineDecayLR(_LRScheduler):
         )
         self._restart_interval = restart_interval
         self._restart_interval_multiplier = restart_interval_multiplier
-        super(CyclicCosineDecayLR, self).__init__(
-            optimizer, last_epoch, verbose=verbose
-        )
+
+        self._restart_flag = False
+        super().__init__(optimizer, last_epoch, verbose=verbose)
 
     def get_lr(self):
         if self._warmup_epochs > 0 and self.last_epoch < self._warmup_epochs:
@@ -170,6 +170,10 @@ class CyclicCosineDecayLR(_LRScheduler):
                 return self._min_decay_lr
 
     def _calc(self, t, T, lrs, min_lrs):
+        if t == T:
+            self._restart_flag = True
+        else:
+            self._restart_flag = False
         return [
             min_lr + (lr - min_lr) * ((1 + cos(pi * t / T)) / 2)
             for lr, min_lr in zip(lrs, min_lrs)
