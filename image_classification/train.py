@@ -59,7 +59,12 @@ if __name__ == "__main__":
         [
             A.OneOf(
                 [
-                    A.ShiftScaleRotate(),
+                    A.Affine(
+                        scale=(-0.1, 0.1),
+                        translate_percent=(-0.0625, 0.0625),
+                        rotate=(-45, 45),
+                        shear=(-15, 15),
+                    ),
                     A.RandomResizedCrop(256, 256),
                     A.HorizontalFlip(),
                     # A.VerticalFlip(),
@@ -98,7 +103,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="014_refactoring",
+        experiment_name="015_add_shear_aug",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
