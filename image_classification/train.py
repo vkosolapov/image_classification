@@ -59,12 +59,13 @@ if __name__ == "__main__":
         [
             A.OneOf(
                 [
-                    A.Affine(
-                        scale=(-0.1, 0.1),
-                        translate_percent=(-0.0625, 0.0625),
-                        rotate=(-45, 45),
-                        shear=(-15, 15),
-                    ),
+                    # A.Affine(
+                    #    scale=(-0.1, 0.1),
+                    #    translate_percent=(-0.0625, 0.0625),
+                    #    rotate=(-45, 45),
+                    #    shear=(-15, 15),
+                    # ),
+                    A.ShiftScaleRotate(),
                     A.RandomResizedCrop(256, 256),
                     A.HorizontalFlip(),
                     # A.VerticalFlip(),
@@ -103,20 +104,20 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="015_add_shear_aug",
+        experiment_name="001_base",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
         augmentations=augmentations,
         model=model,
-        optimizer=swa,
+        optimizer=optimizer,  # swa,
         num_epochs=500,
         criterion=LabelSmoothingFocalLoss(
-            num_classes=num_classes, gamma=2, smoothing=0.1
+            num_classes=num_classes, gamma=0, smoothing=0.1
         ),
         accuracy=torchmetrics.Accuracy(num_classes=num_classes),
         auroc=torchmetrics.AUROC(num_classes=num_classes, average="macro"),
-        grad_init=grad_init,
+        # grad_init=grad_init,
         scheduler=scheduler,
         mixup=True,
         cutmix=True,
