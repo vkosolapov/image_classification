@@ -8,6 +8,7 @@ from train_loop import TrainLoop
 import albumentations as A
 from albumentations.augmentations.transforms import CoarseDropout
 from model import ResNet
+from timm import create_model
 from loss import LabelSmoothingFocalLoss
 import torchmetrics
 from optimizer import Ranger
@@ -23,7 +24,8 @@ torch.cuda.manual_seed_all(0)
 if __name__ == "__main__":
     num_classes = 10
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = ResNet("resnet34", num_classes=num_classes).to(device)
+    # model = ResNet("resnet34", num_classes=num_classes).to(device)
+    model = create_model("mobilenetv3_large_100", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -104,7 +106,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="001_base",
+        experiment_name="001_mobilenet_v3_timm",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,

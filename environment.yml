@@ -135,6 +135,7 @@ dependencies:
     - scipy==1.7.3
     - threadpoolctl==3.0.0
     - tifffile==2021.11.2
+    - timm==0.4.12
     - torch-tb-profiler==0.3.1
     - torchcontrib==0.0.2
     - torchmetrics==0.6.0
