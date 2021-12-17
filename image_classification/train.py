@@ -25,7 +25,7 @@ if __name__ == "__main__":
     num_classes = 10
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # model = ResNet("resnet34", num_classes=num_classes).to(device)
-    model = create_model("mobilenetv3_large_100", num_classes=num_classes).to(device)
+    model = create_model("ghostnet_100", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="001_mobilenet_v3_timm",
+        experiment_name="003_ghostnet_timm",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
