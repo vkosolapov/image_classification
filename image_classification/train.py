@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from train_loop import TrainLoop
 import albumentations as A
 from albumentations.augmentations.transforms import CoarseDropout
-from model import ResNet
+from resnet import ResNet
 from mobilenet import mobilenetv3_large
 from timm import create_model
 from loss import LabelSmoothingFocalLoss
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     num_classes = 10
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # model = ResNet("resnet34", num_classes=num_classes).to(device)
-    model = mobilenetv3_large(num_classes=10).to(device)
+    model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
     # model = create_model("ghostnet_100", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         min_decay_lr=0.001,
         restart_lr=0.01,
         restart_interval=10,
-        # restart_interval_multiplier=2.0,
+        restart_interval_multiplier=1.2,
     )
 
     grad_init = {
@@ -63,13 +63,13 @@ if __name__ == "__main__":
         [
             A.OneOf(
                 [
-                    # A.Affine(
-                    #    scale=(-0.1, 0.1),
-                    #    translate_percent=(-0.0625, 0.0625),
-                    #    rotate=(-45, 45),
-                    #    shear=(-15, 15),
-                    # ),
-                    A.ShiftScaleRotate(),
+                    A.Affine(
+                        scale=(-0.1, 0.1),
+                        translate_percent=(-0.0625, 0.0625),
+                        rotate=(-45, 45),
+                        shear=(-15, 15),
+                    ),
+                    # A.ShiftScaleRotate(),
                     A.RandomResizedCrop(256, 256),
                     A.HorizontalFlip(),
                     # A.VerticalFlip(),
@@ -108,20 +108,20 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="004_mobilenet_v3_my",
+        experiment_name="005_put_it_all_together",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
         augmentations=augmentations,
         model=model,
-        optimizer=optimizer,  # swa,
+        optimizer=swa,
         num_epochs=500,
         criterion=LabelSmoothingFocalLoss(
-            num_classes=num_classes, gamma=0, smoothing=0.1
+            num_classes=num_classes, gamma=2, smoothing=0.1
         ),
         accuracy=torchmetrics.Accuracy(num_classes=num_classes),
         auroc=torchmetrics.AUROC(num_classes=num_classes, average="macro"),
-        # grad_init=grad_init,
+        grad_init=grad_init,
         scheduler=scheduler,
         mixup=True,
         cutmix=True,
