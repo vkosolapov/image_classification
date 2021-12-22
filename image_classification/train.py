@@ -108,20 +108,20 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="005_ghostnet_my",
+        experiment_name="006_put_it_all_together",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
         augmentations=augmentations,
         model=model,
-        optimizer=optimizer,  # swa,
+        optimizer=swa,
         num_epochs=500,
         criterion=LabelSmoothingFocalLoss(
             num_classes=num_classes, gamma=2, smoothing=0.1
         ),
         accuracy=torchmetrics.Accuracy(num_classes=num_classes),
         auroc=torchmetrics.AUROC(num_classes=num_classes, average="macro"),
-        # grad_init=grad_init,
+        grad_init=grad_init,
         scheduler=scheduler,
         mixup=True,
         cutmix=True,
