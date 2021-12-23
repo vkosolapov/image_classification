@@ -26,8 +26,8 @@ if __name__ == "__main__":
     num_classes = 10
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # model = ResNet("resnet34", num_classes=num_classes).to(device)
-    model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
-    # model = create_model("ghostnet_100", num_classes=num_classes).to(device)
+    # model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
+    model = create_model("densenet121", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -108,20 +108,20 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="006_put_it_all_together",
+        experiment_name="007_densenet",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
         augmentations=augmentations,
         model=model,
-        optimizer=swa,
+        optimizer=optimizer,  # swa,
         num_epochs=500,
         criterion=LabelSmoothingFocalLoss(
             num_classes=num_classes, gamma=2, smoothing=0.1
         ),
         accuracy=torchmetrics.Accuracy(num_classes=num_classes),
         auroc=torchmetrics.AUROC(num_classes=num_classes, average="macro"),
-        grad_init=grad_init,
+        # grad_init=grad_init,
         scheduler=scheduler,
         mixup=True,
         cutmix=True,
