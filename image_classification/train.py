@@ -111,7 +111,7 @@ if __name__ == "__main__":
         experiment_name="011_SEResNeXt",
         device=device,
         datadir="data/imagenette2",
-        batch_size=32,
+        batch_size=64,
         augmentations=augmentations,
         model=model,
         optimizer=optimizer,  # swa,
