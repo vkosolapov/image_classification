@@ -27,7 +27,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # model = ResNet("resnet34", num_classes=num_classes).to(device)
     # model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
-    model = create_model("legacy_seresnext26_32x4d", num_classes=num_classes).to(device)
+    model = create_model("legacy_seresnext50_32x4d", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="011_SEResNeXt",
+        experiment_name="012_SEResNeXt_50",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
