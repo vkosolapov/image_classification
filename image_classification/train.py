@@ -26,6 +26,7 @@ torch.cuda.manual_seed_all(0)
 if __name__ == "__main__":
     num_classes = 10
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # model = ResNet("resnet34", num_classes=num_classes).to(device)
     # model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
     # model = create_model("seresnext50_32x4d", num_classes=num_classes).to(device)
