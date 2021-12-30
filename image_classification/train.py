@@ -10,6 +10,7 @@ from albumentations.augmentations.transforms import CoarseDropout
 from resnet import ResNet
 from mobilenet import mobilenetv3_large
 from timm import create_model
+from timm.models.resnet import _create_resnet, Bottleneck
 from loss import LabelSmoothingFocalLoss
 import torchmetrics
 from optimizer import Ranger
@@ -27,7 +28,19 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # model = ResNet("resnet34", num_classes=num_classes).to(device)
     # model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
-    model = create_model("legacy_seresnext50_32x4d", num_classes=num_classes).to(device)
+    # model = create_model("seresnext50_32x4d", num_classes=num_classes).to(device)
+    model_args = dict(
+        block=Bottleneck,
+        layers=[3, 4, 6, 3],
+        cardinality=32,
+        base_width=4,
+        block_args=dict(attn_layer="se"),
+        stem_width=32,
+        stem_type="deep",
+        avg_down=True,
+        num_classes=num_classes,
+    )
+    model = _create_resnet("seresnext50d_32x4d", False, **model_args).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -108,7 +121,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="012_SEResNeXt_50",
+        experiment_name="013_SEResNeXt_50_D",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
