@@ -40,7 +40,7 @@ if __name__ == "__main__":
         avg_down=True,
         num_classes=num_classes,
     )
-    model = _create_resnet("seresnext50d_32x4d", False, **model_args).to(device)
+    model = _create_resnet("seresnext50_32x4d", False, **model_args).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
