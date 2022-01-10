@@ -36,7 +36,7 @@ if __name__ == "__main__":
         layers=[2, 2, 2, 2],  # [3, 4, 6, 3],
         cardinality=32,
         base_width=4,
-        block_args=dict(attn_layer="se"),
+        block_args=dict(attn_layer="se", sk_kwargs=dict(split_input=True)),
         stem_width=32,
         stem_type="deep",
         avg_down=True,
