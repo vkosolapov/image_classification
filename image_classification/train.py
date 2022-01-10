@@ -11,6 +11,7 @@ from resnet import ResNet
 from mobilenet import mobilenetv3_large
 from timm import create_model
 from timm.models.resnet import _create_resnet, Bottleneck
+from timm.models.sknet import SelectiveKernelBottleneck
 from loss import LabelSmoothingFocalLoss
 import torchmetrics
 from optimizer import Ranger
@@ -31,8 +32,8 @@ if __name__ == "__main__":
     # model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
     # model = create_model("seresnext50_32x4d", num_classes=num_classes).to(device)
     model_args = dict(
-        block=Bottleneck,
-        layers=[3, 4, 6, 3],
+        block=SelectiveKernelBottleneck,
+        layers=[2, 2, 2, 2],  # [3, 4, 6, 3],
         cardinality=32,
         base_width=4,
         block_args=dict(attn_layer="se"),
@@ -122,7 +123,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="013_SEResNeXt_50_D",
+        experiment_name="014_SK_SE_ResNeXt_D",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
