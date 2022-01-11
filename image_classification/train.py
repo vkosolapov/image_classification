@@ -34,11 +34,10 @@ if __name__ == "__main__":
     # model = create_model("seresnext50_32x4d", num_classes=num_classes).to(device)
     model_args = dict(
         block=SKBottle2neck,  # SelectiveKernelBottleneck,
-        layers=[3, 4, 6, 3],
+        layers=[2, 2, 2, 2],  # [3, 4, 6, 3],
         cardinality=8,  # 32,
         base_width=4,
-        block_args=dict(attn_layer="se", sk_kwargs=dict(split_input=True)),
-        # block_args=dict(scale=4),
+        block_args=dict(attn_layer="se", sk_kwargs=dict(split_input=True), scale=4),
         stem_width=32,
         stem_type="deep",
         avg_down=True,
@@ -125,7 +124,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="016_Res2NeXt_D",
+        experiment_name="016_SK_SE_Res2NeXt_D",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,

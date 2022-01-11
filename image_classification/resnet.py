@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 from timm.models.sknet import SelectiveKernelBottleneck
+from timm.models.layers import ConvBnAct
 
 
 architectures = {
@@ -155,11 +156,21 @@ class SKBottle2neck(SelectiveKernelBottleneck):
         self.scale = scale
         self.num_scales = max(1, scale - 1)
         self.is_first = stride > 1 or downsample is not None
-        self.width = int(math.floor(planes * (base_width / 64.0))) * cardinality
+        width = int(math.floor(planes * (base_width / 64.0))) * cardinality
+        self.width = width
+        outplanes = planes * self.expansion
+        conv_kwargs = dict(
+            drop_block=drop_block,
+            act_layer=act_layer,
+            norm_layer=norm_layer,
+            aa_layer=aa_layer,
+        )
+        self.conv1 = ConvBnAct(inplanes, width * scale, kernel_size=1, **conv_kwargs)
         convs = []
         for i in range(self.num_scales):
             convs.append(self.conv2)
         self.convs = nn.ModuleList(convs)
+        self.conv3 = ConvBnAct(width * scale, outplanes, kernel_size=1, **conv_kwargs)
         if self.is_first:
             self.pool = nn.AvgPool2d(kernel_size=3, stride=stride, padding=1)
         else:
