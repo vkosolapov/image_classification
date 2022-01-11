@@ -1,3 +1,5 @@
+import math
+import torch
 import torch.nn as nn
 from timm.models.sknet import SelectiveKernelBottleneck
 
@@ -130,6 +132,7 @@ class SKBottle2neck(SelectiveKernelBottleneck):
         aa_layer=None,
         drop_block=None,
         drop_path=None,
+        scale=4,
     ):
         super().__init__(
             inplanes,
@@ -149,3 +152,49 @@ class SKBottle2neck(SelectiveKernelBottleneck):
             drop_block,
             drop_path,
         )
+        self.scale = scale
+        self.num_scales = max(1, scale - 1)
+        self.is_first = stride > 1 or downsample is not None
+        self.width = int(math.floor(planes * (base_width / 64.0))) * cardinality
+        convs = []
+        for i in range(self.num_scales):
+            convs.append(self.conv2)
+        self.convs = nn.ModuleList(convs)
+        if self.is_first:
+            self.pool = nn.AvgPool2d(kernel_size=3, stride=stride, padding=1)
+        else:
+            self.pool = None
+
+    def forward(self, x):
+        shortcut = x
+
+        x = self.conv1(x)
+
+        spx = torch.split(x, self.width, 1)
+        spo = []
+        sp = spx[0]
+        for i, conv in enumerate(self.convs):
+            if i == 0 or self.is_first:
+                sp = spx[i]
+            else:
+                sp = sp + spx[i]
+            sp = conv(sp)
+            spo.append(sp)
+        if self.scale > 1:
+            if self.pool is not None:
+                spo.append(self.pool(spx[-1]))
+            else:
+                spo.append(spx[-1])
+        x = torch.cat(spo, 1)
+
+        x = self.conv3(x)
+
+        if self.se is not None:
+            x = self.se(x)
+        if self.drop_path is not None:
+            x = self.drop_path(x)
+        if self.downsample is not None:
+            shortcut = self.downsample(shortcut)
+        x += shortcut
+        x = self.act(x)
+        return x
