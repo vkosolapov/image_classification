@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 from timm.models.sknet import SelectiveKernelBottleneck
-from timm.models.layers import ConvBnAct
+from timm.models.layers import ConvBnAct, SelectiveKernel
 
 
 architectures = {
@@ -166,6 +166,15 @@ class SKBottle2neck(SelectiveKernelBottleneck):
             aa_layer=aa_layer,
         )
         self.conv1 = ConvBnAct(inplanes, width * scale, kernel_size=1, **conv_kwargs)
+        self.conv2 = SelectiveKernel(
+            width,
+            width,
+            stride=stride,
+            dilation=first_dilation,
+            groups=cardinality,
+            **conv_kwargs,
+            **sk_kwargs
+        )
         convs = []
         for i in range(self.num_scales):
             convs.append(self.conv2)

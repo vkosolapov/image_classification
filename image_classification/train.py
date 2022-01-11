@@ -124,7 +124,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="016_SK_SE_Res2NeXt_D",
+        experiment_name="016_SE_SK_Res2NeXt_D",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
