@@ -1,4 +1,5 @@
 import torch.nn as nn
+from timm.models.sknet import SelectiveKernelBottleneck
 
 
 architectures = {
@@ -108,3 +109,43 @@ class ResNet(nn.Module):
         result = self.stage4(result)
         result = self.classifier(result)
         return result
+
+
+class SKBottle2neck(SelectiveKernelBottleneck):
+    def __init__(
+        self,
+        inplanes,
+        planes,
+        stride=1,
+        downsample=None,
+        cardinality=1,
+        base_width=64,
+        sk_kwargs=None,
+        reduce_first=1,
+        dilation=1,
+        first_dilation=None,
+        act_layer=nn.ReLU,
+        norm_layer=nn.BatchNorm2d,
+        attn_layer=None,
+        aa_layer=None,
+        drop_block=None,
+        drop_path=None,
+    ):
+        super().__init__(
+            inplanes,
+            planes,
+            stride,
+            downsample,
+            cardinality,
+            base_width,
+            sk_kwargs,
+            reduce_first,
+            dilation,
+            first_dilation,
+            act_layer,
+            norm_layer,
+            attn_layer,
+            aa_layer,
+            drop_block,
+            drop_path,
+        )
