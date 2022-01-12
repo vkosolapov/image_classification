@@ -44,7 +44,7 @@ if __name__ == "__main__":
         num_classes=num_classes,
     )
     # model = _create_resnet("seresnext50_32x4d", False, **model_args).to(device)
-    model = create_model("efficientnet_b0", num_classes=num_classes).to(device)
+    model = create_model("selecsls42", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="017_efficientnet_b0",
+        experiment_name="018_selecsls42",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
