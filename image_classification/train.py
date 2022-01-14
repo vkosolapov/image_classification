@@ -38,7 +38,7 @@ if __name__ == "__main__":
         cardinality=32,
         base_width=4,
         # block_args=dict(attn_layer="se", sk_kwargs=dict(split_input=True), scale=4),
-        block_args=dict(attn_layer="eca"),
+        block_args=dict(attn_layer="ese"),
         stem_width=32,
         stem_type="deep",
         avg_down=True,
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="021_ECA_ResNeXt_50_D_resume",
+        experiment_name="022_ESE_ResNeXt_50_D",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         cutmix=True,
         cutmixup_alpha=0.2,
         early_stopping=20,
-        checkpoint_file="checkpoints/checkpoint_139.pth",
+        # checkpoint_file="checkpoints/checkpoint_139.pth",
     )
 
     loop.train_model()
