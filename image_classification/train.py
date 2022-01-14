@@ -126,7 +126,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="020_ECA_ResNeXt_50_D",
+        experiment_name="021_ECA_ResNeXt_50_D_resume",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
@@ -145,6 +145,7 @@ if __name__ == "__main__":
         cutmix=True,
         cutmixup_alpha=0.2,
         early_stopping=20,
+        checkpoint_file="checkpoints/checkpoint_139.pth",
     )
 
     loop.train_model()
