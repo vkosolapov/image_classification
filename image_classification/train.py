@@ -44,8 +44,8 @@ if __name__ == "__main__":
         avg_down=True,
         num_classes=num_classes,
     )
-    # model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
-    model = create_model("cspresnext50", num_classes=num_classes).to(device)
+    model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
+    # model = create_model("cspresnext50", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="024_cspresnext50",
+        experiment_name="001_ECA_ResNeXt_50_D",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
