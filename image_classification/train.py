@@ -44,8 +44,8 @@ if __name__ == "__main__":
         avg_down=True,
         num_classes=num_classes,
     )
-    model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
-    # model = create_model("hrnet_w18", num_classes=num_classes).to(device)
+    # model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
+    model = create_model("ese_vovnet57b", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="022_ESE_ResNeXt_50_D",
+        experiment_name="023_ese_vovnet57b",
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
