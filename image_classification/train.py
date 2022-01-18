@@ -3,6 +3,7 @@ import numpy as np
 import torch
 
 from torch.utils.tensorboard import SummaryWriter
+import wandb
 
 from train_loop import TrainLoop
 import albumentations as A
@@ -24,6 +25,8 @@ np.random.seed(0)
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 
+EXPERIMENT_NAME = "001_ECA_ResNeXt_50_D"
+wandb.init(sync_tensorboard=True, project="image_classification", name=EXPERIMENT_NAME)
 
 if __name__ == "__main__":
     num_classes = 10
@@ -34,18 +37,18 @@ if __name__ == "__main__":
     # model = create_model("seresnext50_32x4d", num_classes=num_classes).to(device)
     model_args = dict(
         block=Bottleneck,
-        layers=[2, 2, 2, 2],  # [3, 4, 6, 3],
+        layers=[3, 4, 6, 3],
         cardinality=32,
         base_width=4,
         # block_args=dict(attn_layer="se", sk_kwargs=dict(split_input=True), scale=4),
-        block_args=dict(attn_layer="ese"),
+        block_args=dict(attn_layer="eca"),
         stem_width=32,
         stem_type="deep",
         avg_down=True,
         num_classes=num_classes,
     )
-    # model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
-    model = create_model("tresnet_m", num_classes=num_classes).to(device)
+    model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
+    # model = create_model("tresnet_m", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -126,7 +129,7 @@ if __name__ == "__main__":
     )
 
     loop = TrainLoop(
-        experiment_name="002_TResNet",
+        experiment_name=EXPERIMENT_NAME,
         device=device,
         datadir="data/imagenette2",
         batch_size=64,
