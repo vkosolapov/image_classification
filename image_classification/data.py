@@ -25,7 +25,7 @@ class DataLoader:
             batch_size=batch_size,
             shuffle=(phase == "train"),
             drop_last=(phase == "train"),
-            num_workers=1,
+            num_workers=8,
             persistent_workers=True,
             pin_memory=True,
         )
