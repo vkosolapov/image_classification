@@ -25,14 +25,14 @@ np.random.seed(0)
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 
-EXPERIMENT_NAME = "002_TResNet_M"
+EXPERIMENT_NAME = "FFCV"
 wandb.init(sync_tensorboard=True, project="image_classification", name=EXPERIMENT_NAME)
 
 if __name__ == "__main__":
     num_classes = 10
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # model = ResNet("resnet34", num_classes=num_classes).to(device)
+    model = ResNet("resnet34", num_classes=num_classes).to(device)
     # model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
     # model = create_model("seresnext50_32x4d", num_classes=num_classes).to(device)
     model_args = dict(
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         num_classes=num_classes,
     )
     # model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
-    model = create_model("tresnet_m", num_classes=num_classes).to(device)
+    # model = create_model("tresnet_m", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)

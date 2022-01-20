@@ -42,7 +42,7 @@ class TrainLoop:
         self.batch_size = batch_size
         sets = ["train", "val"]
         self.data_loaders = {
-            x: DataLoader(datadir, x, batch_size, augmentations) for x in sets
+            x: DataLoader(datadir, x, device, batch_size, augmentations) for x in sets
         }
         self.model = model
         self.optimizer = optimizer
@@ -128,9 +128,9 @@ class TrainLoop:
         for i, (inputs, labels) in tqdm(
             enumerate(self.data_loaders["train"].data_loader)
         ):
-            self.inputs = inputs.to(self.device)
+            # self.inputs = inputs.to(self.device)
             self.inputs_size = inputs.size(0)
-            self.labels = labels.to(self.device)
+            # self.labels = labels.to(self.device)
             if self.mixup or self.cutmix:
                 self.inputs, labels_a, labels_b, lambda_ = cutmixup_data(
                     self.inputs,
@@ -185,8 +185,8 @@ class TrainLoop:
         for i, (inputs, labels) in tqdm(
             enumerate(self.data_loaders["val"].data_loader)
         ):
-            self.inputs = inputs.to(self.device)
-            self.labels = labels.to(self.device)
+            # self.inputs = inputs.to(self.device)
+            # self.labels = labels.to(self.device)
             with torch.set_grad_enabled(False):
                 outputs = self.model(self.inputs)
                 self.loss = self.criterion(outputs, self.labels)
