@@ -13,6 +13,7 @@ from mobilenet import mobilenetv3_large
 from timm import create_model
 from timm.models.resnet import _create_resnet, Bottleneck
 from timm.models.sknet import SelectiveKernelBottleneck
+from timm.models.resnest import ResNestBottleneck
 from timm.models.res2net import Bottle2neck
 from loss import LabelSmoothingFocalLoss
 import torchmetrics
@@ -25,7 +26,7 @@ np.random.seed(0)
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 
-EXPERIMENT_NAME = "003_RegNet"
+EXPERIMENT_NAME = "004_ResNeSXt_D"
 wandb.init(sync_tensorboard=True, project="image_classification", name=EXPERIMENT_NAME)
 
 if __name__ == "__main__":
@@ -36,19 +37,19 @@ if __name__ == "__main__":
     # model = mobilenetv3_large(num_classes=10, ghost_block=True).to(device)
     # model = create_model("seresnext50_32x4d", num_classes=num_classes).to(device)
     model_args = dict(
-        block=Bottleneck,
-        layers=[3, 4, 6, 3],
+        block=ResNestBottleneck,
+        layers=[2, 2, 2, 2],  # [3, 4, 6, 3],
         cardinality=32,
         base_width=4,
-        # block_args=dict(attn_layer="se", sk_kwargs=dict(split_input=True), scale=4),
-        block_args=dict(attn_layer="eca"),
+        # block_args=dict(attn_layer="se", sk_kwargs=dict(split_input=True), scale=4), # SKNet
+        block_args=dict(radix=2, avd=True, avd_first=False),  # ResNeSt
         stem_width=32,
         stem_type="deep",
         avg_down=True,
         num_classes=num_classes,
     )
-    # model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
-    model = create_model("regnety_032", num_classes=num_classes).to(device)
+    model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
+    # model = create_model("regnety_032", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
