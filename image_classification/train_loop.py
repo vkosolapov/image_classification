@@ -175,8 +175,9 @@ class TrainLoop:
             "epoch": epoch,
             "model_state": self.model.state_dict(),
             "optim_state": self.optimizer.state_dict(),
-            "scheduler_state": self.scheduler.state_dict(),
         }
+        if self.scheduler:
+            checkpoint["scheduler_state"] = (self.scheduler.state_dict(),)
         torch.save(checkpoint, f"checkpoints/checkpoint_{epoch}.pth")
 
     def test_epoch(self, epoch):
@@ -209,7 +210,8 @@ class TrainLoop:
             checkpoint = torch.load(self.checkpoint_file)
             self.model.load_state_dict(checkpoint["model_state"])
             self.optimizer.load_state_dict(checkpoint["optim_state"])
-            self.scheduler.load_state_dict(checkpoint["scheduler_state"])
+            if self.scheduler:
+                self.scheduler.load_state_dict(checkpoint["scheduler_state"])
         best_model_wts = copy.deepcopy(self.model.state_dict())
         best_acc = 0.0
         for epoch in range(self.num_epochs):
