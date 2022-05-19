@@ -65,6 +65,7 @@ if __name__ == "__main__":
         restart_interval=10,
         # restart_interval_multiplier=1.2,
     )
+    scheduler = None
 
     grad_init = {
         "gradinit_lr": 1e-3,
