@@ -26,7 +26,7 @@ np.random.seed(0)
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 
-EXPERIMENT_NAME = "012_lambda_resnet26t"
+EXPERIMENT_NAME = "014_lamhalobotnet50ts_256"
 wandb.init(sync_tensorboard=True, project="image_classification", name=EXPERIMENT_NAME)
 
 if __name__ == "__main__":
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         num_classes=num_classes,
     )
     # model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
-    model = create_model("lambda_resnet26t", num_classes=num_classes).to(device)
+    model = create_model("lamhalobotnet50ts_256", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
@@ -65,7 +65,7 @@ if __name__ == "__main__":
         restart_interval=10,
         # restart_interval_multiplier=1.2,
     )
-    scheduler = None
+    # scheduler = None
 
     grad_init = {
         "gradinit_lr": 1e-3,
