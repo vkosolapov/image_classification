@@ -26,7 +26,7 @@ np.random.seed(0)
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 
-EXPERIMENT_NAME = "014_lamhalobotnet50ts_256"
+EXPERIMENT_NAME = "001_best_result"
 wandb.init(sync_tensorboard=True, project="image_classification", name=EXPERIMENT_NAME)
 
 if __name__ == "__main__":
@@ -48,8 +48,8 @@ if __name__ == "__main__":
         avg_down=True,
         num_classes=num_classes,
     )
-    # model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
-    model = create_model("lamhalobotnet50ts_256", num_classes=num_classes).to(device)
+    model = _create_resnet("ecaresnet50d", False, **model_args).to(device)
+    # model = create_model("lamhalobotnet50ts_256", num_classes=num_classes).to(device)
 
     optimizer = Ranger(model.parameters(), lr=0.01, weight_decay=0.0001)
     # swa = SWA(optimizer_conv, swa_start=10, swa_freq=5, swa_lr=0.05)
